@@ -45,7 +45,10 @@ class ClassicalGAN:
         self.optim_g = optim.Adam(self.generator.parameters(), lr=0.0002)
         self.optim_d = optim.Adam(self.discriminator.parameters(), lr=0.0002)
 
-    def train(self, epochs=10000):
+    def train(self, epochs=10000, batch_size=64):
         print("Training Classical GAN...")
-        # Placeholder for training loop
-        pass
+        for epoch in range(epochs):
+            # Placeholder for training logic
+            # Generate fake data and train discriminator and generator
+            if epoch % 1000 == 0:
+                print(f"Epoch {epoch}/{epochs} completed.")

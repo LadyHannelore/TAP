@@ -25,3 +25,8 @@ class QuantumGenerator:
         params = np.random.uniform(0, np.pi, 2 * self.num_qubits)
         output = self.circuit(params)
         print("Quantum Output:", output)
+
+        # Example data for SVG export
+        data = [((0, 0), (output[0] * 100, output[1] * 100))]
+        from src.utility import export_to_svg
+        export_to_svg(data, filename="quantum_output.svg")
