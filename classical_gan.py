@@ -50,7 +50,11 @@ def setup_cuda_environment() -> torch.device:
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if torch.cuda.is_available():
         torch.cuda.empty_cache()  # Clear any cached memory
+        # Enable optimizations for better GPU utilization
+        torch.backends.cudnn.benchmark = True
+        torch.backends.cudnn.deterministic = False
         logger.info(f"CUDA device initialized: {torch.cuda.get_device_name(0)}")
+        logger.info(f"CUDA memory available: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB")
     else:
         logger.warning("CUDA not available, falling back to CPU")
     return device
@@ -75,21 +79,29 @@ class ClassicalGenerator(nn.Module):
         
         self.network = nn.Sequential(
             # Input layer
-            nn.Linear(latent_dim, 256),
-            nn.LeakyReLU(0.2),
-            nn.BatchNorm1d(256),
-            
-            # Hidden layers
-            nn.Linear(256, 512),
+            nn.Linear(latent_dim, 512),
             nn.LeakyReLU(0.2),
             nn.BatchNorm1d(512),
             
-            nn.Linear(512, 256),
+            # Hidden layers
+            nn.Linear(512, 1024),
             nn.LeakyReLU(0.2),
-            nn.BatchNorm1d(256),
+            nn.BatchNorm1d(1024),
+            
+            nn.Linear(1024, 2048),
+            nn.LeakyReLU(0.2),
+            nn.BatchNorm1d(2048),
+            
+            nn.Linear(2048, 1024),
+            nn.LeakyReLU(0.2),
+            nn.BatchNorm1d(1024),
+            
+            nn.Linear(1024, 512),
+            nn.LeakyReLU(0.2),
+            nn.BatchNorm1d(512),
             
             # Output layer
-            nn.Linear(256, output_dim),
+            nn.Linear(512, output_dim),
             nn.Tanh()  # Output in [-1, 1] range
         )
     
@@ -121,21 +133,29 @@ class ClassicalDiscriminator(nn.Module):
         
         self.network = nn.Sequential(
             # Input layer
-            nn.Linear(input_dim, 256),
+            nn.Linear(input_dim, 512),
             nn.LeakyReLU(0.2),
             nn.Dropout(0.3),
             
             # Hidden layers
-            nn.Linear(256, 512),
+            nn.Linear(512, 1024),
             nn.LeakyReLU(0.2),
             nn.Dropout(0.3),
             
-            nn.Linear(512, 256),
+            nn.Linear(1024, 2048),
+            nn.LeakyReLU(0.2),
+            nn.Dropout(0.3),
+            
+            nn.Linear(2048, 1024),
+            nn.LeakyReLU(0.2),
+            nn.Dropout(0.3),
+            
+            nn.Linear(1024, 512),
             nn.LeakyReLU(0.2),
             nn.Dropout(0.3),
             
             # Output layer
-            nn.Linear(256, 1),
+            nn.Linear(512, 1),
             nn.Sigmoid()
         )
     
@@ -171,7 +191,7 @@ class ClassicalGAN:
     
     def __init__(
         self, 
-        latent_dim: int = 100, 
+        latent_dim: int = 256, 
         output_dim: int = 8, 
         device: Optional[torch.device] = None,
         learning_rate: float = 0.0002,
@@ -326,9 +346,9 @@ def create_synthetic_geometric_data(num_samples: int = 1000, output_dim: int = 8
     return torch.from_numpy(data)
 
 def train_classical_gan(
-    epochs: int = 100, 
-    batch_size: int = 32, 
-    save_interval: int = 10
+    epochs: int = 500, 
+    batch_size: int = 128, 
+    save_interval: int = 25
 ) -> Tuple[ClassicalGAN, torch.Tensor]:
     """
     Train the classical GAN with real-time epoch display.
@@ -354,7 +374,7 @@ def train_classical_gan(
         print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB")
     
     # Create training data
-    train_data = create_synthetic_geometric_data(2000, output_dim=8)
+    train_data = create_synthetic_geometric_data(10000, output_dim=8)
     
     # Create dataset and dataloader
     class GeometricDataset(torch.utils.data.Dataset):
@@ -368,10 +388,15 @@ def train_classical_gan(
             return self.data[idx]
     
     dataset = GeometricDataset(train_data)
-    train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    train_loader = torch.utils.data.DataLoader(
+        dataset, 
+        batch_size=batch_size, 
+        shuffle=True,
+        pin_memory=True  # Faster data transfer to GPU
+    )
     
     # Initialize GAN
-    gan = ClassicalGAN(latent_dim=100, output_dim=8, device=device)
+    gan = ClassicalGAN(latent_dim=256, output_dim=8, device=device)
     
     print(f"\nTraining for {epochs} epochs...")
     print(f"Batch size: {batch_size}")
@@ -413,15 +438,22 @@ def train_classical_gan(
         gan.d_losses.append(float(avg_d_loss))
         gan.g_losses.append(float(avg_g_loss))
         
-        # Real-time epoch display
+        # Real-time epoch display with GPU memory info
         elapsed_time = time.time() - start_time
         eta = (elapsed_time / (epoch + 1)) * (epochs - epoch - 1)
+        
+        # Get GPU memory usage if available
+        gpu_mem_info = ""
+        if torch.cuda.is_available():
+            gpu_mem_used = torch.cuda.memory_allocated() / 1e9
+            gpu_mem_cached = torch.cuda.memory_reserved() / 1e9
+            gpu_mem_info = f" | GPU: {gpu_mem_used:.1f}GB/{gpu_mem_cached:.1f}GB"
         
         print(f"Epoch {epoch+1:3d}/{epochs} | "
               f"D_loss: {avg_d_loss:.4f} | "
               f"G_loss: {avg_g_loss:.4f} | "
               f"Time: {epoch_time:.2f}s | "
-              f"ETA: {eta:.0f}s")
+              f"ETA: {eta:.0f}s{gpu_mem_info}")
         
         # Save samples periodically
         if (epoch + 1) % save_interval == 0:
@@ -647,10 +679,10 @@ def main() -> None:
     
     try:
         # Train the GAN with professional monitoring
-        gan, train_data = train_classical_gan(epochs=50, batch_size=32, save_interval=5)
+        gan, train_data = train_classical_gan(epochs=500, batch_size=128, save_interval=25)
         
         # Generate and export professional designs
-        designs = generate_and_export_designs(gan, num_designs=10)
+        designs = generate_and_export_designs(gan, num_designs=2000)
         
         # Create professional training visualizations
         plot_training_progress(gan)
