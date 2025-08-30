@@ -1,8 +1,21 @@
 torch>=1.9.0
 torchvision>=0.10.0
+# For CUDA support, install with: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 pennylane>=0.28.0
+pennylane-lightning-gpu>=0.32.0  # GPU-accelerated quantum simulations
 numpy>=1.21.0
 matplotlib>=3.4.0
 svgwrite>=1.4.0
 opencv-python>=4.5.0
 scikit-image>=0.18.0
+cupy-cuda11x>=11.0.0  # CUDA acceleration for NumPy-like operations
+numba>=0.56.0  # JIT compilation with CUDA support
+
+# Scientific computing and evaluation
+scipy>=1.7.0  # For spatial operations and statistics
+scikit-learn>=1.0.0  # For clustering and PCA
+pandas>=1.3.0  # For data handling (optional)
+
+# Visualization and export
+Pillow>=8.3.0  # For image processing
+reportlab>=3.6.0  # For PDF export (optional)
