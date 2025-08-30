@@ -1,7 +1,7 @@
 """
 main.py
-Entry point for the Enhanced Classical GAN project.
-This file redirects to the classical implementation with real-time epoch display.
+Entry point for the Enhanced Quantum GAN project.
+This file redirects to the enhanced implementation.
 """
 
 import sys
@@ -9,20 +9,28 @@ import os
 
 def main():
     """Main entry point with enhanced features."""
-    print("🚀 TAP - Classical GAN with CUDA Acceleration")
+    print("🚀 TAP - Quantum GAN with CUDA Acceleration")
     print("=" * 60)
-    print("Starting Classical GAN System...")
+    print("Starting Enhanced Quantum GAN System...")
     print("=" * 60)
     
-    # Try to run the classical GAN version first
+    # Try to run the enhanced VQC version first
     try:
-        print("Loading classical GAN system...")
-        import classical_gan
-        classical_gan.main()
+        print("Loading enhanced VQC system...")
+        import main_vqc
+        main_vqc.main()
         return
     except Exception as e:
-        print(f"Classical GAN system not available: {e}")
-        print("Falling back to basic system...")
+        print(f"Enhanced VQC system not available: {e}")
+        print("Falling back to demo system...")
+    
+    # Fallback to demo
+    try:
+        import demo_quantum_gan
+        demo_quantum_gan.main()
+        return
+    except Exception as e:
+        print(f"Demo system failed: {e}")
     
     # Basic fallback
     print("\n" + "=" * 60)
@@ -41,9 +49,8 @@ def main():
         print("\n✅ Basic system operational!")
         print("For full functionality, ensure all dependencies are installed.")
         print("\nTry running:")
-        print("  python classical_gan.py    (for classical GAN training)")
-        print("  python demo_quantum_gan.py (for quantum demo)")
-        print("  python main_vqc.py         (for quantum VQC system)")
+        print("  python demo_quantum_gan.py  (for quick demo)")
+        print("  python main_vqc.py         (for full VQC system)")
         
     except Exception as e:
         print(f"System check failed: {e}")
